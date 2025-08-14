@@ -12,7 +12,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         "-completed_at")
 
     filterset_class = PurchaseFilter
-    search_fields = ("cart_name", "store_name", "items__name", "tags")
+    search_fields = ("cart_name", "store_name", "items__name")
     ordering_fields = ("completed_at", "total_amount", "items_count")
     ordering = ("-completed_at",)
 
