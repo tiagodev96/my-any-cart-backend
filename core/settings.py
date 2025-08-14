@@ -119,11 +119,20 @@ CORS_ALLOWED_ORIGINS = _split_env_list(
 )
 CORS_ALLOW_CREDENTIALS = True
 
-# Se for acessar o backend por um domínio diferente em produção, configure:
 CSRF_TRUSTED_ORIGINS = _split_env_list(
     "CSRF_TRUSTED_ORIGINS",
     "http://localhost:3000,http://127.0.0.1:3000",
 )
+
+# --- Google OAuth2 ---
+GOOGLE_CLIENT_IDS = [
+    s.strip()
+    for s in os.getenv(
+        "GOOGLE_CLIENT_IDS",
+        os.getenv("GOOGLE_CLIENT_ID", ""),
+    ).split(",")
+    if s.strip()
+]
 
 # --- Static files ---
 STATIC_URL = "static/"
