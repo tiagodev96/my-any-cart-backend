@@ -1,14 +1,12 @@
-# core/settings.py
 from pathlib import Path
 import os
 from dotenv import load_dotenv
 import dj_database_url
+from datetime import timedelta
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# --- Básico / Env ---
 
 
 def _split_env_list(name: str, default: str = ""):
@@ -74,13 +72,12 @@ TEMPLATES = [{
 }]
 
 # --- Database ---
-# Usa DATABASE_URL quando disponível; se não, cai em SQLite (dev)
 DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL:
     DATABASES = {
         "default": dj_database_url.parse(
             DATABASE_URL,
-            conn_max_age=600,  # pooling básico
+            conn_max_age=600,
             ssl_require=os.getenv("DB_SSL_REQUIRE", "0") == "1",
         )
     }
@@ -94,6 +91,9 @@ else:
 
 # --- DRF ---
 REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS":
         "rest_framework.pagination.PageNumberPagination",
@@ -105,13 +105,19 @@ REST_FRAMEWORK = {
     ],
 }
 
+# --- Simple JWT ---
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+}
+
 # --- CORS / CSRF ---
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = _split_env_list(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:3000",
 )
-CORS_ALLOW_CREDENTIALS = True  # útil p/ cookies/autenticação mais tarde
+CORS_ALLOW_CREDENTIALS = True
 
 # Se for acessar o backend por um domínio diferente em produção, configure:
 CSRF_TRUSTED_ORIGINS = _split_env_list(
@@ -121,7 +127,7 @@ CSRF_TRUSTED_ORIGINS = _split_env_list(
 
 # --- Static files ---
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"  # útil p/ collectstatic no deploy
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # --- Password validation ---
 AUTH_PASSWORD_VALIDATORS = [
@@ -141,15 +147,15 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # --- I18N / TZ ---
-LANGUAGE_CODE = "en-us"  # podemos mudar para pt-pt depois se quiser
-TIME_ZONE = "UTC"        # podemos ajustar para Europe/Lisbon
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
 # --- Auto field ---
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# --- Logging básico (útil para depurar no deploy) ---
+# --- Logging ---
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

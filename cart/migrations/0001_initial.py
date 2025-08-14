@@ -18,16 +18,20 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Purchase',
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('id', models.UUIDField(default=uuid.uuid4,
+                 editable=False, primary_key=True, serialize=False)),
                 ('cart_name', models.CharField(max_length=120)),
                 ('completed_at', models.DateTimeField(auto_now_add=True)),
-                ('store_name', models.CharField(blank=True, default='', max_length=120)),
+                ('store_name', models.CharField(
+                    blank=True, default='', max_length=120)),
                 ('currency', models.CharField(default='EUR', max_length=3)),
                 ('notes', models.TextField(blank=True, default='')),
                 ('tags', models.JSONField(blank=True, null=True)),
                 ('items_count', models.PositiveIntegerField(default=0)),
-                ('total_amount', models.DecimalField(decimal_places=2, default=Decimal('0.00'), max_digits=12, validators=[django.core.validators.MinValueValidator(Decimal('0.00'))])),
-                ('idempotency_key', models.CharField(blank=True, db_index=True, max_length=64, null=True, unique=True)),
+                ('total_amount', models.DecimalField(decimal_places=2, default=Decimal(
+                    '0.00'), max_digits=12, validators=[django.core.validators.MinValueValidator(Decimal('0.00'))])),
+                ('idempotency_key', models.CharField(blank=True,
+                 db_index=True, max_length=64, null=True, unique=True)),
             ],
             options={
                 'ordering': ['-completed_at'],
@@ -37,15 +41,19 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='PurchaseItem',
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('id', models.BigAutoField(auto_created=True,
+                 primary_key=True, serialize=False, verbose_name='ID')),
                 ('name', models.CharField(max_length=180)),
-                ('unit_price', models.DecimalField(decimal_places=2, max_digits=10, validators=[django.core.validators.MinValueValidator(Decimal('0.00'))])),
-                ('quantity', models.PositiveIntegerField(validators=[django.core.validators.MinValueValidator(1)])),
+                ('unit_price', models.DecimalField(decimal_places=2, max_digits=10, validators=[
+                 django.core.validators.MinValueValidator(Decimal('0.00'))])),
+                ('quantity', models.PositiveIntegerField(
+                    validators=[django.core.validators.MinValueValidator(1)])),
                 ('category', models.CharField(blank=True, default='', max_length=64)),
                 ('brand', models.CharField(blank=True, default='', max_length=64)),
                 ('barcode', models.CharField(blank=True, default='', max_length=64)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('purchase', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='items', to='cart.purchase')),
+                ('purchase', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE, related_name='items', to='cart.purchase')),
             ],
             options={
                 'indexes': [models.Index(fields=['purchase'], name='cart_purcha_purchas_c97010_idx')],

@@ -14,12 +14,6 @@ class PurchaseItemInputSerializer(serializers.Serializer):
     price = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal("0.00"))
     quantity = serializers.IntegerField(min_value=1)
-    category = serializers.CharField(
-        max_length=64, required=False, allow_blank=True, default="")
-    brand = serializers.CharField(
-        max_length=64, required=False, allow_blank=True, default="")
-    barcode = serializers.CharField(
-        max_length=64, required=False, allow_blank=True, default="")
 
 
 class PurchaseItemSerializer(serializers.ModelSerializer):
@@ -30,8 +24,14 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseItem
-        fields = ["id", "name", "unit_price", "quantity", "category",
-                  "brand", "barcode", "line_total", "created_at"]
+        fields = [
+            "id",
+            "name",
+            "unit_price",
+            "quantity",
+            "line_total",
+            "created_at",
+        ]
 
     def get_line_total(self, obj: PurchaseItem) -> str:
         return str(obj.line_total)
@@ -110,9 +110,6 @@ class PurchaseCreateSerializer(serializers.ModelSerializer):
                 name=p["name"],
                 unit_price=p["price"],
                 quantity=int(p["quantity"]),
-                category=p.get("category", ""),
-                brand=p.get("brand", ""),
-                barcode=p.get("barcode", ""),
             )
             for p in products
         ]

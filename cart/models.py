@@ -4,9 +4,19 @@ from decimal import Decimal
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import CheckConstraint, Q
+from django.conf import settings
 
 
 class Purchase(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="purchases",
+        db_index=True
+    )
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     cart_name = models.CharField(max_length=120)
@@ -40,6 +50,7 @@ class Purchase(models.Model):
         indexes = [
             models.Index(fields=["completed_at"]),
             models.Index(fields=["store_name"]),
+            models.Index(fields=["user", "completed_at"])
         ]
         ordering = ["-completed_at"]
 

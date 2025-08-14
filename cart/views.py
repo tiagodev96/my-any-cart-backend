@@ -1,20 +1,21 @@
 from django.db import models
 from rest_framework import status, viewsets
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import Purchase
 from .serializers import PurchaseCreateSerializer, PurchaseSerializer
-from .filters import PurchaseFilter
 
 
 class PurchaseViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+
     queryset: models.QuerySet[Purchase] = Purchase.objects.all().order_by(
         "-completed_at")
 
-    filterset_class = PurchaseFilter
-    search_fields = ("cart_name", "store_name", "items__name")
-    ordering_fields = ("completed_at", "total_amount", "items_count")
-    ordering = ("-completed_at",)
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.filter(user=self.request.user)
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -32,6 +33,9 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         purchase = serializer.save()
+
+        purchase.user = request.user
+        purchase.save(update_fields=["user"])
 
         read = PurchaseSerializer(
             purchase, context=self.get_serializer_context())
