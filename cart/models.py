@@ -79,11 +79,6 @@ class PurchaseItem(models.Model):
         validators=[MinValueValidator(1)],
     )
 
-    # REMOVIDO: unit = models.CharField(max_length=16, blank=True, default="")
-    category = models.CharField(max_length=64, blank=True, default="")
-    brand = models.CharField(max_length=64, blank=True, default="")
-    barcode = models.CharField(max_length=64, blank=True, default="")
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
