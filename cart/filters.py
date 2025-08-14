@@ -1,4 +1,8 @@
+from __future__ import annotations
+
+from django.db.models import QuerySet
 from django_filters import rest_framework as filters
+
 from .models import Purchase
 
 
@@ -18,7 +22,12 @@ class PurchaseFilter(filters.FilterSet):
 
     class Meta:
         model = Purchase
-        fields = []
+        fields: list[str] = []
 
-    def filter_tag(self, queryset, name, value):
+    def filter_tag(
+        self,
+        queryset: QuerySet[Purchase],
+        name: str,
+        value: str
+    ) -> QuerySet[Purchase]:
         return queryset.filter(tags__contains=[value])
