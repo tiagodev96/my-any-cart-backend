@@ -35,6 +35,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "django_filters",
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
     # local
     "cart",
 ]
@@ -92,6 +94,7 @@ else:
 
 # --- DRF ---
 REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS":
         "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
