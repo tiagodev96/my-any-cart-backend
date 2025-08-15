@@ -13,6 +13,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from .serializers_auth import UserRegisterSerializer
+
 
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
@@ -70,6 +72,54 @@ def _issue_tokens(user) -> dict:
 # ----------------------
 # Views
 # ----------------------
+class MeView(APIView):
+    """
+    GET /api/me/
+    Retorna dados do usuário autenticado.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        u = request.user
+        full_name = f"{u.first_name} {u.last_name}".strip()
+        data = {
+            "id": u.id,
+            "email": u.email,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "name": full_name or None,
+            "avatar_url": None,
+            "is_staff": u.is_staff,
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class UserRegisterView(APIView):
+    """
+    POST /api/users/
+    Body: { first_name, last_name, email, password, password2? }
+    Retorna também tokens JWT para já logar no frontend.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        s = UserRegisterSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        user = s.save()
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "id": user.id,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class GoogleLoginView(APIView):
     """
     Receives a Google ID Token (credential/id_token),
