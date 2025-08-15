@@ -1,118 +1,128 @@
-from decimal import Decimal
-from typing import List
-
+from decimal import Decimal, ROUND_HALF_UP
+from django.db import transaction
 from rest_framework import serializers
 
 from .models import Purchase, PurchaseItem
 
 
+TWOPL = Decimal("0.01")
+
+
 class PurchaseItemInputSerializer(serializers.Serializer):
-    """
-    Entry item to create a purchase from the frontend.
-    """
     name = serializers.CharField(max_length=180)
     price = serializers.DecimalField(
-        max_digits=10, decimal_places=2, min_value=Decimal("0.00"))
+        max_digits=10, decimal_places=2, min_value=Decimal("0.00")
+    )
     quantity = serializers.IntegerField(min_value=1)
 
 
-class PurchaseItemSerializer(serializers.ModelSerializer):
-    """
-    Read-only item returned by the API.
-    """
-    line_total = serializers.SerializerMethodField()
-
-    class Meta:
-        model = PurchaseItem
-        fields = [
-            "id",
-            "name",
-            "unit_price",
-            "quantity",
-            "line_total",
-            "created_at",
-        ]
-
-    def get_line_total(self, obj: PurchaseItem) -> str:
-        return str(obj.line_total)
-
-
-class PurchaseSerializer(serializers.ModelSerializer):
-    """
-    Read-only purchase including items and totals.
-    """
-    items = PurchaseItemSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Purchase
-        fields = [
-            "id", "cart_name", "store_name", "currency", "notes", "tags",
-            "items_count", "total_amount", "completed_at", "idempotency_key",
-            "items",
-        ]
-
-
 class PurchaseCreateSerializer(serializers.ModelSerializer):
-    """
-    Create a purchase from a list of products.
-    Calculates items_count and total_amount in the backend.
-    Respects idempotency_key.
-    """
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     products = PurchaseItemInputSerializer(many=True, write_only=True)
 
     class Meta:
         model = Purchase
-        # the client does not send items_count/total_amount/completed_at
-        read_only_fields = ["items_count", "total_amount", "completed_at"]
         fields = [
-            "cart_name", "store_name", "currency", "notes", "tags",
-            "idempotency_key", "products",
+            "cart_name",
+            "store_name",
+            "currency",
+            "notes",
+            "tags",
+            "idempotency_key",
+            "products",
+            "user",
         ]
+        extra_kwargs = {
+            "store_name": {"required": False, "allow_blank": True},
+            "currency": {"required": False},
+            "notes": {"required": False, "allow_blank": True},
+            "tags": {"required": False, "allow_null": True},
+            "idempotency_key": {
+                "required": False,
+                "allow_null": True,
+                "allow_blank": True,
+            },
+        }
 
-    def validate_currency(self, value: str) -> str:
-        v = (value or "").upper()
-        if len(v) != 3 or not v.isalpha():
-            raise serializers.ValidationError(
-                "Currency must be an ISO-4217 code (e.g.: 'EUR').")
-        return v
+    def validate_idempotency_key(self, value):
+        if value is None:
+            return None
+        v = (value or "").strip()
+        return v or None
 
-    def validate_products(self, value: List[dict]) -> List[dict]:
-        if not value:
-            raise serializers.ValidationError(
-                "At least one product is required.")
+    def validate_tags(self, value):
+        if isinstance(value, str):
+            parts = [p.strip() for p in value.split(",")]
+            return [p for p in parts if p]
         return value
 
-    def create(self, validated_data: dict) -> Purchase:
-        products = validated_data.pop("products")
-        idem = validated_data.get("idempotency_key")
+    @transaction.atomic
+    def create(self, validated_data):
+        products = validated_data.pop("products", [])
 
-        # Idempotency: if it already exists, return the same record
+        user = validated_data.pop("user", None)
+        if not getattr(user, "is_authenticated", False):
+            user = None
+
+        idem = validated_data.get("idempotency_key", None)
+
         if idem:
-            existing = Purchase.objects.filter(idempotency_key=idem).first()
+            existing = Purchase.objects.filter(
+                user=user, idempotency_key=idem).first()
             if existing:
                 return existing
 
-        # Calculations
         subtotal = Decimal("0.00")
         for p in products:
-            subtotal += (p["price"] * Decimal(p["quantity"]))
+            line = (p["price"] * Decimal(p["quantity"])
+                    ).quantize(TWOPL, rounding=ROUND_HALF_UP)
+            subtotal += line
+        subtotal = subtotal.quantize(TWOPL, rounding=ROUND_HALF_UP)
 
         purchase = Purchase.objects.create(
+            user=user,
             **validated_data,
             items_count=len(products),
             total_amount=subtotal,
         )
 
-        # Create items (snapshot)
-        items = [
-            PurchaseItem(
-                purchase=purchase,
-                name=p["name"],
-                unit_price=p["price"],
-                quantity=int(p["quantity"]),
-            )
-            for p in products
-        ]
-        PurchaseItem.objects.bulk_create(items)
+        PurchaseItem.objects.bulk_create(
+            [
+                PurchaseItem(
+                    purchase=purchase,
+                    name=p["name"],
+                    unit_price=Decimal(p["price"]).quantize(
+                        TWOPL, rounding=ROUND_HALF_UP),
+                    quantity=p["quantity"],
+                )
+                for p in products
+            ]
+        )
 
         return purchase
+
+
+class PurchaseItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseItem
+        fields = ("name", "unit_price", "quantity", "created_at")
+
+
+class PurchaseSerializer(serializers.ModelSerializer):
+    items = PurchaseItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Purchase
+        fields = (
+            "id",
+            "cart_name",
+            "completed_at",
+            "store_name",
+            "currency",
+            "notes",
+            "tags",
+            "items_count",
+            "total_amount",
+            "idempotency_key",
+            "items",
+        )

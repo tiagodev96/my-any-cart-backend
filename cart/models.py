@@ -14,13 +14,12 @@ class Purchase(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="purchases",
-        db_index=True
+        db_index=True,
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     cart_name = models.CharField(max_length=120)
-
     completed_at = models.DateTimeField(auto_now_add=True)
 
     store_name = models.CharField(max_length=120, blank=True, default="")
@@ -40,7 +39,6 @@ class Purchase(models.Model):
 
     idempotency_key = models.CharField(
         max_length=64,
-        unique=True,
         null=True,
         blank=True,
         db_index=True,
@@ -50,9 +48,17 @@ class Purchase(models.Model):
         indexes = [
             models.Index(fields=["completed_at"]),
             models.Index(fields=["store_name"]),
-            models.Index(fields=["user", "completed_at"])
+            models.Index(fields=["user", "completed_at"]),
         ]
         ordering = ["-completed_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "idempotency_key"],
+                name="unique_idempotency_per_user",
+                condition=(Q(idempotency_key__isnull=False)
+                           & ~Q(idempotency_key="")),
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.cart_name} • {self.completed_at:%Y-%m-%d}"
@@ -74,7 +80,6 @@ class PurchaseItem(models.Model):
         validators=[MinValueValidator(Decimal("0.00"))],
     )
 
-    # Agora em unidades inteiras (1, 2, 3, ...)
     quantity = models.PositiveIntegerField(
         validators=[MinValueValidator(1)],
     )
@@ -102,4 +107,5 @@ class PurchaseItem(models.Model):
     @property
     def line_total(self) -> Decimal:
         return (Decimal(self.quantity) or Decimal("0")) * (
-            self.unit_price or Decimal("0"))
+            self.unit_price or Decimal("0")
+        )
