@@ -118,7 +118,7 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = _split_env_list(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:3000,"
-    "https://my-any-cart-wduh.vercel.app,"
+    "https://my-any-cart-frontend.vercel.app,"
     "https://*.vercel.app"
 )
 CORS_ALLOW_CREDENTIALS = True
@@ -134,7 +134,7 @@ CSRF_TRUSTED_ORIGINS = _split_env_list(
     "CSRF_TRUSTED_ORIGINS",
     "http://localhost:3000,"
     "http://127.0.0.1:3000,"
-    "https://my-any-cart-wduh.vercel.app,"
+    "https://my-any-cart-frontend.vercel.app,"
     "https://*.vercel.app"
 )
 
