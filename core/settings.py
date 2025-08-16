@@ -20,7 +20,8 @@ def _split_env_list(name: str, default: str = ""):
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-key-unsafe")
 DEBUG = os.getenv("DEBUG", "1") == "1"
-ALLOWED_HOSTS = _split_env_list("ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = _split_env_list(
+    "ALLOWED_HOSTS", "localhost,127.0.0.1,.vercel.app")
 
 # --- Apps ---
 INSTALLED_APPS = [
@@ -54,8 +55,8 @@ MIDDLEWARE = [
 
 # --- URLs/WSGI/ASGI ---
 ROOT_URLCONF = "core.urls"
-WSGI_APPLICATION = "core.wsgi.application"  # útil p/ hosts WSGI
-ASGI_APPLICATION = "core.asgi.application"  # útil p/ hosts ASGI/serverless
+WSGI_APPLICATION = "api.wsgi.app"
+ASGI_APPLICATION = "core.asgi.application"
 
 # --- Templates ---
 TEMPLATES = [{
@@ -116,7 +117,9 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = _split_env_list(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000",
+    "http://localhost:3000,"
+    "https://my-any-cart-wduh.vercel.app,"
+    "https://*.vercel.app"
 )
 CORS_ALLOW_CREDENTIALS = True
 
@@ -129,7 +132,10 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 
 CSRF_TRUSTED_ORIGINS = _split_env_list(
     "CSRF_TRUSTED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000",
+    "http://localhost:3000,"
+    "http://127.0.0.1:3000,"
+    "https://my-any-cart-wduh.vercel.app,"
+    "https://*.vercel.app"
 )
 
 # --- Google OAuth2 ---
