@@ -149,7 +149,7 @@ GOOGLE_CLIENT_IDS = [
 ]
 
 # --- Static files ---
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # --- Password validation ---
