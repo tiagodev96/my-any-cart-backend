@@ -1,3 +1,4 @@
+from corsheaders.defaults import default_headers
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -41,7 +42,7 @@ INSTALLED_APPS = [
 
 # --- Middleware ---
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # manter no topo
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -118,6 +119,13 @@ CORS_ALLOWED_ORIGINS = _split_env_list(
     "http://localhost:3000",
 )
 CORS_ALLOW_CREDENTIALS = True
+
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "authorization",
+    "content-type",
+    "idempotency-key"
+]
 
 CSRF_TRUSTED_ORIGINS = _split_env_list(
     "CSRF_TRUSTED_ORIGINS",

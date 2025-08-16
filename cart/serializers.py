@@ -2,23 +2,45 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import Purchase, PurchaseItem
-
+from .models import Purchase, PurchaseItem, ISO4217_CHOICES
 
 TWOPL = Decimal("0.01")
+VALID_CURRENCIES = {code for code, _ in ISO4217_CHOICES}
 
 
 class PurchaseItemInputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=180)
     price = serializers.DecimalField(
-        max_digits=10, decimal_places=2, min_value=Decimal("0.00")
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        required=False,
+    )
+    unit_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        required=False,
     )
     quantity = serializers.IntegerField(min_value=1)
+
+    def validate(self, attrs):
+        price = attrs.get("price", None)
+        unit_price = attrs.get("unit_price", None)
+        if price is None and unit_price is None:
+            raise serializers.ValidationError(
+                "Either 'price' or 'unit_price' is required.")
+        if price is None:
+            price = unit_price
+        attrs["price"] = price
+        attrs.pop("unit_price", None)
+        return attrs
 
 
 class PurchaseCreateSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    products = PurchaseItemInputSerializer(many=True, write_only=True)
+    products = PurchaseItemInputSerializer(
+        many=True, write_only=True, required=False)
 
     class Meta:
         model = Purchase
@@ -44,6 +66,20 @@ class PurchaseCreateSerializer(serializers.ModelSerializer):
             },
         }
 
+    def to_internal_value(self, data):
+        data = dict(data)
+        if "products" not in data and "items" in data:
+            data["products"] = data.pop("items")
+        return super().to_internal_value(data)
+
+    def validate_currency(self, value):
+        if not value:
+            return "EUR"
+        v = (value or "").upper()
+        if v not in VALID_CURRENCIES:
+            raise serializers.ValidationError("Unsupported currency")
+        return v
+
     def validate_idempotency_key(self, value):
         if value is None:
             return None
@@ -59,13 +95,11 @@ class PurchaseCreateSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         products = validated_data.pop("products", [])
-
         user = validated_data.pop("user", None)
         if not getattr(user, "is_authenticated", False):
             user = None
 
         idem = validated_data.get("idempotency_key", None)
-
         if idem:
             existing = Purchase.objects.filter(
                 user=user, idempotency_key=idem).first()
@@ -73,31 +107,33 @@ class PurchaseCreateSerializer(serializers.ModelSerializer):
                 return existing
 
         subtotal = Decimal("0.00")
+        norm_products = []
         for p in products:
-            line = (p["price"] * Decimal(p["quantity"])
-                    ).quantize(TWOPL, rounding=ROUND_HALF_UP)
-            subtotal += line
-        subtotal = subtotal.quantize(TWOPL, rounding=ROUND_HALF_UP)
+            price = Decimal(p["price"]).quantize(TWOPL, rounding=ROUND_HALF_UP)
+            qty = int(p["quantity"])
+            line = (price * Decimal(qty)).quantize(TWOPL,
+                                                   rounding=ROUND_HALF_UP)
+            subtotal = (subtotal + line).quantize(TWOPL,
+                                                  rounding=ROUND_HALF_UP)
+            norm_products.append(
+                {
+                    "name": p["name"],
+                    "unit_price": price,
+                    "quantity": qty,
+                }
+            )
 
         purchase = Purchase.objects.create(
             user=user,
             **validated_data,
-            items_count=len(products),
+            items_count=len(norm_products),
             total_amount=subtotal,
         )
 
-        PurchaseItem.objects.bulk_create(
-            [
-                PurchaseItem(
-                    purchase=purchase,
-                    name=p["name"],
-                    unit_price=Decimal(p["price"]).quantize(
-                        TWOPL, rounding=ROUND_HALF_UP),
-                    quantity=p["quantity"],
-                )
-                for p in products
-            ]
-        )
+        if norm_products:
+            PurchaseItem.objects.bulk_create(
+                [PurchaseItem(purchase=purchase, **np) for np in norm_products]
+            )
 
         return purchase
 

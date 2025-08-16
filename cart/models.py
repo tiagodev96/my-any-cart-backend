@@ -1,10 +1,32 @@
 import uuid
 from decimal import Decimal
 
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import CheckConstraint, Q
 from django.conf import settings
+
+ISO4217_CHOICES = [
+    ("USD", "USD"),
+    ("EUR", "EUR"),
+    ("CNY", "CNY"),
+    ("JPY", "JPY"),
+    ("GBP", "GBP"),
+    ("INR", "INR"),
+    ("BRL", "BRL"),
+    ("AUD", "AUD"),
+    ("CAD", "CAD"),
+    ("CHF", "CHF"),
+    ("MXN", "MXN"),
+    ("KRW", "KRW"),
+    ("TRY", "TRY"),
+    ("ZAR", "ZAR"),
+]
+
+iso4217_upper_validator = RegexValidator(
+    regex=r"^[A-Z]{3}$",
+    message="Currency must be a 3-letter ISO 4217 code (uppercase).",
+)
 
 
 class Purchase(models.Model):
@@ -23,7 +45,13 @@ class Purchase(models.Model):
     completed_at = models.DateTimeField(auto_now_add=True)
 
     store_name = models.CharField(max_length=120, blank=True, default="")
-    currency = models.CharField(max_length=3, default="EUR")
+    currency = models.CharField(
+        max_length=3,
+        default="EUR",
+        validators=[iso4217_upper_validator],
+        choices=ISO4217_CHOICES,
+        db_index=True,
+    )
 
     notes = models.TextField(blank=True, default="")
     tags = models.JSONField(blank=True, null=True)
@@ -57,6 +85,10 @@ class Purchase(models.Model):
                 name="unique_idempotency_per_user",
                 condition=(Q(idempotency_key__isnull=False)
                            & ~Q(idempotency_key="")),
+            ),
+            CheckConstraint(
+                check=Q(items_count__gte=0),
+                name="purchase_items_count_non_negative",
             ),
         ]
 
